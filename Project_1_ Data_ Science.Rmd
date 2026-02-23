@@ -1,0 +1,187 @@
+---
+title: "Project 1 Spotify"
+output: html_document
+date: "2026-02-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r, echo=TRUE}
+library(tidyverse)
+
+spotify <- read_csv("dataset.csv")
+
+#Summary of data set
+
+nrow(spotify)
+ncol(spotify)
+
+names(spotify)
+
+summary(spotify)
+str(spotify)
+
+# Key Variables
+analysis_variables <- c(
+  "popularity",
+  "duration_ms",
+  "danceability",
+  "energy",
+  "loudness",
+  "speechiness",
+  "acousticness",
+  "instrumentalness",
+  "liveness",
+  "valence",
+  "tempo",
+  "explicit",
+  "track_genre"
+)
+
+analysis_variables
+summary(spotify[, analysis_variables])
+
+# Genre Analysis
+genre_counts <- table(spotify$track_genre)
+
+length(genre_counts)       
+unique(genre_counts)      
+genre_counts      
+
+# Missing Values
+
+sum(is.na(spotify))
+
+rwm <- which(!complete.cases(spotify))
+
+for (r in rwm) {
+  mis_cols <- names(spotify)[is.na(spotify[r, ])]
+  
+  cat("Track:", spotify$track_name[r], "\n")
+  cat("Genre:", spotify$track_genre[r], "\n")
+  cat("Missing Variable(s):", paste(mis_cols, collapse=", "), "\n")
+}
+
+# Avergaes per Genre
+
+avg_popularity <- tapply(spotify$popularity, spotify$track_genre, mean)
+avg_energy <- tapply(spotify$energy, spotify$track_genre, mean)
+avg_danceability <- tapply(spotify$danceability, spotify$track_genre, mean)
+avg_valence <- tapply(spotify$valence, spotify$track_genre, mean)
+avg_loudness <- tapply(spotify$loudness, spotify$track_genre, mean)
+avg_tempo <- tapply(spotify$tempo, spotify$track_genre, mean)
+avg_acousticness <- tapply(spotify$acousticness, spotify$track_genre, mean)
+avg_duration <- tapply(spotify$duration_ms, spotify$track_genre, mean)
+
+genre_n <- tapply(spotify$popularity, spotify$track_genre, length)
+
+genre_table <- data.frame(
+  Genre = names(avg_popularity),
+  N = as.numeric(genre_n),
+  Avg_Popularity = as.numeric(avg_popularity),
+  Avg_Energy = as.numeric(avg_energy),
+  Avg_Danceability = as.numeric(avg_danceability),
+  Avg_Valence = as.numeric(avg_valence),
+  Avg_Loudness = as.numeric(avg_loudness),
+  Avg_Tempo = as.numeric(avg_tempo),
+  Avg_Acousticness = as.numeric(avg_acousticness),
+  Avg_Duration_ms = as.numeric(avg_duration),
+  row.names = NULL
+)
+
+# Now sort
+genre_table <- genre_table[order(-genre_table$Avg_Popularity), ]
+
+# Add rank
+genre_table$Rank <- 1:nrow(genre_table)
+
+# Move Rank to front
+genre_table <- genre_table[, c("Rank", "Genre", "N",
+                               "Avg_Popularity",
+                               "Avg_Energy",
+                               "Avg_Danceability",
+                               "Avg_Valence",
+                               "Avg_Loudness",
+                               "Avg_Tempo",
+                               "Avg_Acousticness",
+                               "Avg_Duration_ms")]
+
+genre_table
+
+# Popularity Outlier Analysis per Genre
+
+count_outliers <- function(x) {
+  Q1 <- quantile(x, 0.25)
+  Q3 <- quantile(x, 0.75)
+  IQR_value <- IQR(x)
+  lower <- Q1 - 1.5 * IQR_value
+  upper <- Q3 + 1.5 * IQR_value
+  sum(x < lower | x > upper)
+}
+
+outlier_counts <- tapply(spotify$popularity,
+                         spotify$track_genre,
+                         count_outliers)
+
+outlier_table <- data.frame(
+  Genre = names(outlier_counts),
+  Num_Popularity_Outliers = as.numeric(outlier_counts)
+)
+
+outlier_table
+
+# Linear Regression for "Do audio features affect popularity differently across genres?"
+
+interaction_model <- lm(
+  popularity ~ danceability + energy + loudness + tempo + valence +
+    acousticness + duration_ms +
+    track_genre +
+    danceability:track_genre +
+    energy:track_genre,
+  data = spotify
+)
+
+summary(interaction_model)
+
+# Top 5 Genres
+
+top5_genres <- genre_table$Genre[1:5]
+top5_genres
+
+results_top5 <- data.frame()
+
+for (g in top5_genres) {
+  
+  sub <- spotify[spotify$track_genre == g, ]
+  
+  model <- lm(popularity ~ danceability + energy + loudness +
+                tempo + valence + acousticness +
+                duration_ms,
+              data = sub)
+  
+  s <- summary(model)
+  
+  results_top5 <- rbind(results_top5,
+                        data.frame(
+                          Genre = g,
+                          R_squared = s$r.squared,
+                          Adj_R_squared = s$adj.r.squared
+                        ))
+  
+  cat("\n========================\n")
+  cat("GENRE:", g, "\n")
+  print(s)
+}
+
+results_top5
+
+
+```
