@@ -10,26 +10,31 @@ output:
     toc_depth: 3
     toc_float: yes
 ---
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r init, include=FALSE}
+library(ezids)
 ```
 
-## R Markdown
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, fig.width = 8, fig.height = 5)
+options(scientific = TRUE, digits = 3)
+```
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r, echo=TRUE}
+```{r, echo=TRUE, include = FALSE}
 library(tidyverse)
+```
 
-spotify <- read_csv("dataset.csv")
+# Introduction
 
-#Summary of data set
+Our project examines...
+**SMART Question:**
+Genre is a key variable in our analysis.
 
-nrow(spotify)
-ncol(spotify)
+# Summary of data set
+```{r load_data}
+spotify <- read.csv("dataset.csv", header = TRUE)
+str(spotify)
+```
+The dataset has `r nrow(spotify)` observations and `r ncol(spotify)` variables.
 
 names(spotify)
 
