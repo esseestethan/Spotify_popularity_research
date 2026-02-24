@@ -1,7 +1,14 @@
 ---
-title: "Project 1 Spotify"
-output: html_document
+title: "Project 1: Spotify Track Popularity Research"
+authors: "Basay Tayfun, Ethan Terrill, and Isaac Kim"
 date: "2026-02-23"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
 ---
 
 ```{r setup, include=FALSE}
