@@ -1,13 +1,31 @@
 ---
-title: "Project 1 Spotify"
-output: html_document
-date: "2026-02-23"
+title: "Project 1: Spotify Track Popularity and Musical Features"
+author: "Basay Tayfun, Ethan Terrill, and Isaac Kim"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
 ---
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r init, include=FALSE}
+library(ezids)
 ```
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, fig.width = 8, fig.height = 5)
+options(scientific = TRUE, digits = 3)
+```
+# Introduction
+Our project examines how song popularity on modern streaming platforms relates to musical characteristics. We use the Spotify Tracks Dataset (from 1986-2023), which is a publicly available dataset containing approximately 114,000 tracks across 114 genres. Each observation represents an individual track and includes a popularity score (0-100) along with audio features such as danceability, energy, loudness, tempo, valence, acousticness, and duration.
 
+**SMART Question:** *How are musical attributes such as danceability, energy, loudness, tempo, and valence associated with popularity, and how do these relationships differ across major music genres?*
+
+Genre is a key variable in our analysis. Different genres have different audiences, industry exposure, and marketing dynamics. Rather than pooling all 114 genres into one model (which would introduce omitted-variable bias), we first compare genres descriptively and then restrict our analysis to the top 5 genres by average popularity.
+```{r_ET_Note_2.25.26}
+Stopped here 
+```
 ## R Markdown
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
