@@ -25,11 +25,13 @@ library(tidyverse)
 
 # Introduction
 
-Our project examines...
-**SMART Question:**
-Genre is a key variable in our analysis.
+Our project examines how song popularity on modern streaming platforms relates to musical characteristics. We use the 'Spotify Tracks Dataset (1986-2023),' a publicly available dataset containing approximately 114,000 tracks across 114 genres. Each observation represents an individual track and includes a popularity score (0-100) along with audio features such as danceability, energy, loudness, tempo, valence, acousticness, and duration
 
-# Summary of data set
+Our SMART question is as follows: How are musical attributes such as danceability, energy, loudness, tempo, and valence associated with popularity, and how do these relationships differ across major music genres?
+
+Genre is a key variable in our analysis. Different genres have different audiences, industry exposure, and marketing dynamics. Rather than pooling all 114 genres into one model (which would introduce substantial omitted-variable bias), we first compare genres descriptively and then restrict our inferential analysis to the top 5 genres by average popularity.
+
+# Summary of Data Set
 ```{r load_data}
 spotify <- read.csv("dataset.csv", header = TRUE)
 str(spotify)
@@ -39,9 +41,11 @@ The dataset has `r nrow(spotify)` observations and `r ncol(spotify)` variables.
 names(spotify)
 
 summary(spotify)
-str(spotify)
 
-# Key Variables
+```{r preview, results='asis'}
+xkabledplyhead(spotify, title = "First rows of the Spotify dataset")
+```
+## Key Variables
 analysis_variables <- c(
   "popularity",
   "duration_ms",
@@ -61,14 +65,14 @@ analysis_variables <- c(
 analysis_variables
 summary(spotify[, analysis_variables])
 
-# Genre Analysis
+## Genre Analysis
 genre_counts <- table(spotify$track_genre)
 
 length(genre_counts)       
 unique(genre_counts)      
 genre_counts      
 
-# Missing Values
+## Missing Values
 
 sum(is.na(spotify))
 
@@ -82,7 +86,7 @@ for (r in rwm) {
   cat("Missing Variable(s):", paste(mis_cols, collapse=", "), "\n")
 }
 
-# Avergaes per Genre
+## Averages per Genre
 
 avg_popularity <- tapply(spotify$popularity, spotify$track_genre, mean)
 avg_energy <- tapply(spotify$energy, spotify$track_genre, mean)
@@ -109,13 +113,13 @@ genre_table <- data.frame(
   row.names = NULL
 )
 
-# Now sort
+# Sort
 genre_table <- genre_table[order(-genre_table$Avg_Popularity), ]
 
-# Add rank
+# Add Rank
 genre_table$Rank <- 1:nrow(genre_table)
 
-# Move Rank to front
+# Move Rank to Front
 genre_table <- genre_table[, c("Rank", "Genre", "N",
                                "Avg_Popularity",
                                "Avg_Energy",
@@ -128,7 +132,9 @@ genre_table <- genre_table[, c("Rank", "Genre", "N",
 
 genre_table
 
-# Popularity Outlier Analysis per Genre
+# Exploratory Data Analysis:
+
+## Popularity Outlier Analysis per Genre
 
 count_outliers <- function(x) {
   Q1 <- quantile(x, 0.25)
@@ -150,7 +156,7 @@ outlier_table <- data.frame(
 
 outlier_table
 
-# Linear Regression for "Do audio features affect popularity differently across genres?"
+## Linear Regression for "Do audio features affect popularity differently across genres?"
 
 interaction_model <- lm(
   popularity ~ danceability + energy + loudness + tempo + valence +
@@ -163,7 +169,8 @@ interaction_model <- lm(
 
 summary(interaction_model)
 
-# Top 5 Genres
+# Findings
+## Top 5 Genres
 
 top5_genres <- genre_table$Genre[1:5]
 top5_genres
@@ -195,5 +202,9 @@ for (g in top5_genres) {
 
 results_top5
 
+## What We Found
 
+## Limitations
+
+## Strengths
 ```
