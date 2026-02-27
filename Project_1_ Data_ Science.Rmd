@@ -24,7 +24,6 @@ library(tidyverse)
 ```
 
 # Introduction
-
 Our project examines how song popularity on modern streaming platforms relates to musical characteristics. We use the 'Spotify Tracks Dataset (1986-2023),' a publicly available dataset containing approximately 114,000 tracks across 114 genres. Each observation represents an individual track and includes a popularity score (0-100) along with audio features such as danceability, energy, loudness, tempo, valence, acousticness, and duration
 
 Our SMART question is as follows: How are musical attributes such as danceability, energy, loudness, tempo, and valence associated with popularity, and how do these relationships differ across major music genres?
@@ -70,10 +69,16 @@ genre_counts <- table(spotify$track_genre)
 
 length(genre_counts)       
 unique(genre_counts)      
-genre_counts      
+genre_counts     
+
+```{r genre_summary}
+library(dplyr)
+genre_summary <- spotify %>%
+  group_by(track_genre) %>%
+arrange(desc(avg_popularity))
+```
 
 ## Missing Values
-
 sum(is.na(spotify))
 
 rwm <- which(!complete.cases(spotify))
@@ -113,13 +118,13 @@ genre_table <- data.frame(
   row.names = NULL
 )
 
-# Sort
+## Sort
 genre_table <- genre_table[order(-genre_table$Avg_Popularity), ]
 
-# Add Rank
+## Add Rank
 genre_table$Rank <- 1:nrow(genre_table)
 
-# Move Rank to Front
+## Move Rank to Front
 genre_table <- genre_table[, c("Rank", "Genre", "N",
                                "Avg_Popularity",
                                "Avg_Energy",
@@ -134,8 +139,22 @@ genre_table
 
 # Exploratory Data Analysis:
 
-## Popularity Outlier Analysis per Genre
+## Summary Statistics
+```{r summary_stats, results='asis'}
+numeric_vars <- spotify[, c("popularity", "danceability", "energy", "loudness",
+                            "valence", "tempo", "duration_min", "speechiness",
+                            "acousticness", "instrumentalness", "liveness")]
+xkablesummary(numeric_vars, title = "Summary statistics for key numeric variables")
+```
 
+```{r explicit_dist}
+table(spotify$explicit)
+```
+About `r round(sum(spotify$explicit == "True") / nrow(spotify) * 100, 1)`% of tracks are explicit.
+
+## Popularity Outlier Analysis per Genre
+We count how many popularity outliers each genre has using the IQR method. This helps identify genres with unusual popularity distributions.
+```{r outlier_counts_by_genre}
 count_outliers <- function(x) {
   Q1 <- quantile(x, 0.25)
   Q3 <- quantile(x, 0.75)
@@ -154,10 +173,153 @@ outlier_table <- data.frame(
   Num_Popularity_Outliers = as.numeric(outlier_counts)
 )
 
-outlier_table
+outlier_table <- outlier_table[order(-outlier_table$Num_Popularity_Outliers), ]
+```
+```{r outlier_table_display, results='asis'}
+xkabledply(head(outlier_table, 20), title = "Top 20 genres by number of popularity outliers (IQR method)")
+```
+Genres...TBD
+
+## Duration Outlier Analysis
+```{r duration_outliers}
+outlierKD2(spotify, duration_min, rm = FALSE, boxplt = TRUE, qqplt = FALSE)
+```
+
+## Distribution of Popularity
+```{r pop_hist}
+library(ggplot2)
+ggplot(spotify, aes(x = popularity)) +
+  geom_histogram(binwidth = 5, fill = "steelblue", color = "white", alpha = 0.7) +
+  labs(title = "Distribution of Track Popularity",
+       x = "Popularity (0-100)", y = "Count") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+The popularity distribution is TBD. Many tracks in the dataset = TBD. The mean popularity is `r round(mean(spotify$popularity), 1)` and the median is `r median(spotify$popularity)`.
+
+```{r pop_boxplot}
+ggplot(spotify, aes(y = popularity)) +
+  geom_boxplot(fill = "steelblue", alpha = 0.7, outlier.color = "red", outlier.shape = 8) +
+  labs(title = "Boxplot of Track Popularity", y = "Popularity") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+## Distributions of Key Audio Features
+```{r feature_hists, fig.width=10, fig.height=8}
+library(tidyr)
+features_long <- pivot_longer(spotify[, c("danceability", "energy", "valence",
+                                          "loudness", "tempo", "duration_min")],
+                              cols = everything(),
+                              names_to = "feature", values_to = "value")
+ggplot(features_long, aes(x = value)) +
+  geom_histogram(bins = 40, fill = "steelblue", color = "white", alpha = 0.7) +
+  facet_wrap(~ feature, scales = "free", ncol = 3) +
+  labs(title = "Distributions of Key Audio Features", x = "Value", y = "Count") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+Key observations: TBD
+
+## Audio Feature Variation Across Genres
+```{r genre_dance_energy, fig.width=10, fig.height=5}
+ggplot(genre_summary, aes(x = avg_danceability, y = avg_energy)) +
+  geom_point(aes(size = avg_popularity, color = avg_popularity), alpha = 0.7) +
+  scale_color_gradient(low = "gray70", high = "steelblue") +
+  labs(title = "Genre-Level Danceability vs. Energy (sized by popularity)",
+       x = "Average Danceability", y = "Average Energy",
+       color = "Avg Popularity", size = "Avg Popularity") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+Genres...TBD
+
+## ANOVA Test: Does Mean Popularity Differ Across the Top 5 Genres?
+We check whether the top 5 genres' mean popularity scores differ significantly.
+
+```{r anova_pop}
+anova_pop <- aov(popularity ~ track_genre, data = spotify_top5)
+summary(anova_pop)
+```
+
+```{r anova_pop_boxplot}
+ggplot(spotify_top5, aes(x = track_genre, y = popularity, fill = track_genre)) +
+  geom_boxplot(alpha = 0.7, outlier.color = "red", outlier.shape = 8, outlier.size = 1) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Popularity by Genre (Top 5 Genres)", x = "Genre", y = "Popularity") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position = "none")
+```
+
+```{r tukey_pop}
+TukeyHSD(anova_pop)
+```
+The ANOVA tests whether the mean popularity is the same across all 5 selected genres. H0: all group means are equal. Ha: at least one differs. If significant, the Tukey HSD post-hoc test identifies which specific pairs differ.
+
+## Chi-Square Test: Explicit Content Across Genres
+We also ask the following: is the proportion of explicit tracks independent of genre? Both variables here are categorical, so we use a chi-square test of independence.
+
+```{r chisq_explicit}
+explicit_table <- table(spotify_top5$track_genre, spotify_top5$explicit)
+explicit_table
+chisq_result <- chisq.test(explicit_table)
+chisq_result
+```
+This test evaluates H0: genre and explicit content are independent against Ha: they are associated. Here, a significant result would mean that certain genres are more likely to contain explicit content than others.
+
+## Feature Distributions by Genre
+```{r feature_by_genre, fig.width=10, fig.height=12}
+features_top5 <- pivot_longer(spotify_top5[, c("track_genre", "danceability", "energy",
+                                                "valence", "loudness", "tempo", "duration_min")],
+                              cols = -track_genre,
+                              names_to = "feature", values_to = "value")
+ggplot(features_top5, aes(x = value, fill = track_genre)) +
+  geom_histogram(bins = 30, alpha = 0.6, position = "identity") +
+  facet_wrap(~ feature, scales = "free", ncol = 2) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Audio Feature Distributions by Genre (Top 5)",
+       x = "Value", y = "Count", fill = "Genre") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+```{r boxplot_by_genre, fig.width=10, fig.height=10}
+ggplot(features_top5, aes(x = track_genre, y = value, fill = track_genre)) +
+  geom_boxplot(alpha = 0.7, outlier.size = 0.5) +
+  facet_wrap(~ feature, scales = "free_y", ncol = 2) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "Audio Features by Genre (Top 5) -- Boxplots",
+       x = "Genre", y = "Value", fill = "Genre") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+These side-by-side comparisons show TBD
+
+## ANOVA on Audio Features Across Genres
+Before building regressions, we test whether key audio features differ significantly across our 5 selected genres. This uses one-way ANOVA for each feature.
+
+```{r anova_features}
+anova_dance <- aov(danceability ~ track_genre, data = spotify_top5)
+anova_energy <- aov(energy ~ track_genre, data = spotify_top5)
+anova_valence <- aov(valence ~ track_genre, data = spotify_top5)
+anova_loudness <- aov(loudness ~ track_genre, data = spotify_top5)
+anova_tempo <- aov(tempo ~ track_genre, data = spotify_top5)
+
+cat("ANOVA: Danceability ~ Genre\n")
+summary(anova_dance)
+cat("\nANOVA: Energy ~ Genre\n")
+summary(anova_energy)
+cat("\nANOVA: Valence ~ Genre\n")
+summary(anova_valence)
+cat("\nANOVA: Loudness ~ Genre\n")
+summary(anova_loudness)
+cat("\nANOVA: Tempo ~ Genre\n")
+summary(anova_tempo)
+```
+These ANOVAs test H0: the mean of each audio feature is the same across all 5 genres vs. Ha: at least one genre differs. Significant results do TBD.
 
 ## Linear Regression for "Do audio features affect popularity differently across genres?"
-
 interaction_model <- lm(
   popularity ~ danceability + energy + loudness + tempo + valence +
     acousticness + duration_ms +
@@ -169,9 +331,26 @@ interaction_model <- lm(
 
 summary(interaction_model)
 
+## T-Test: Popularity of Explicit vs. Non-Explicit Tracks
+Within our top-5 genre subset, we test whether explicit and non-explicit tracks have different mean popularity via a two-sample t-test.
+
+```{r ttest_explicit}
+explicit_tracks <- subset(spotify_top5, explicit == "True")$popularity
+nonexplicit_tracks <- subset(spotify_top5, explicit == "False")$popularity
+
+cat("Mean popularity (explicit):", round(mean(explicit_tracks), 2), "\n")
+cat("Mean popularity (non-explicit):", round(mean(nonexplicit_tracks), 2), "\n")
+cat("N explicit:", length(explicit_tracks), "\n")
+cat("N non-explicit:", length(nonexplicit_tracks), "\n\n")
+
+ttest_explicit <- t.test(explicit_tracks, nonexplicit_tracks)
+ttest_explicit
+```
+This tests H0: mean popularity is the same for explicit and non-explicit tracks vs. Ha: the means differ.
+
 # Findings
 ## Top 5 Genres
-
+We restrict our inferential analysis to the top 5 genres by average popularity with sufficient sample size. This reduces bias.
 top5_genres <- genre_table$Genre[1:5]
 top5_genres
 
@@ -202,9 +381,32 @@ for (g in top5_genres) {
 
 results_top5
 
+## Summary of Findings
+```{r summary_findings}
+cat("Dataset: Spotify Tracks Dataset\n")
+cat("Total tracks:", nrow(spotify), "\n")
+cat("Total genres:", nlevels(spotify$track_genre), "\n")
+cat("Top 5 genres analyzed:", paste(top5_genres, collapse = ", "), "\n")
+cat("Tracks in top 5 genres:", nrow(spotify_top5), "\n")
+cat("Overall mean popularity:", round(mean(spotify$popularity), 2), "\n")
+cat("Mean popularity in top 5 genres:", round(mean(spotify_top5$popularity), 2), "\n")
+```
+
 ## What We Found
+1. TBD
+2. TBD
+3. TBD 
+4. TBD 
+etc. 
 
 ## Limitations
-
+- TBD
+- TBD
+- TBD
+etc. 
 ## Strengths
+- TBD 
+- TBD
+etc. 
+
 ```
