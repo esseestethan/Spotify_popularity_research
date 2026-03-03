@@ -1,8 +1,17 @@
+title: "Project 1: Spotify Track Popularity Research"
+authors: "Basay Tayfun, Ethan Terrill, and Isaac Kim"
+date: "2026-03-4"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
 ---
-title: "Untitled"
-output: html_document
-date: "2026-03-01"
----
+```{r init, include=FALSE}
+library(ezids)
+```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
