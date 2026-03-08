@@ -1,12 +1,35 @@
 ---
-title: "Untitled"
-output: html_document
-date: "2026-03-01"
+title: "Spotify Track Popularity Analysis: What Audio Features Drive Streaming Success?"
+author: "Basay Tayfun, Ethan Terrill, and Isaac Kim"
+date: "2026-03-08"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
 ---
+
+```{r init, include=FALSE}
+library(ezids)
+```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+# Introduction
+
+Streaming platforms have reshaped the music industry. On Spotify alone, listeners can access over 100 million songs, and a track's visibility depends heavily on algorithmic playlists and recommendation engines. Among the platform's 8-10 million artist profiles, only approximately 225,000 are considered professional or emerging artists, and roughly 21% of all artists have more than 50 monthly listeners (Spotify, 2024). The distribution of attention is steeply concentrated: artists like Taylor Swift, The Weeknd, Drake, Bad Bunny, and Billie Eilish occupy a tiny sliver at the top, while the overwhelming majority of music on the platform is listened to by very few people. This raises a compelling question: do the sonic qualities of a song have any bearing on how many people listen to it, or is popularity driven almost entirely by factors outside the audio signal?
+
+In this project, we work with a large collection of Spotify track data to explore whether measurable audio characteristics can shed light on what makes a song popular. Our analysis is structured around four guiding SMART questions:
+
+1. What patterns emerge when we look at how audio features are distributed across tracks, and do any of them show a meaningful link to popularity?
+2. Is there a measurable difference in popularity between tracks labeled as explicit and those that are not?
+3. Do certain genres consistently attract higher popularity scores than others?
+4. Can we build a regression model that meaningfully predicts popularity from audio features, and does the story change when we account for genre?
+
+These questions allow us to apply a range of techniques from our coursework---including exploratory visualization, t-tests, ANOVA, chi-squared tests, and multiple regression with interaction terms. Our goal is not just to test whether audio features matter, but to understand how their influence shifts depending on the musical context.
 
 ## R Markdown
 
