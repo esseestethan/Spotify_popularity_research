@@ -1,12 +1,35 @@
 ---
-title: "Untitled"
-output: html_document
-date: "2026-03-01"
+title: "Spotify Track Popularity Analysis: What Audio Features Drive Streaming Success?"
+author: "Basay Tayfun, Ethan Terrill, and Isaac Kim"
+date: "2026-03-08"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
 ---
+
+```{r init, include=FALSE}
+library(ezids)
+```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+# Introduction
+
+Streaming platforms have reshaped the music industry. On Spotify alone, listeners can access over 100 million songs, and a track's visibility depends heavily on algorithmic playlists and recommendation engines. Among the platform's 8-10 million artist profiles, only approximately 225,000 are considered professional or emerging artists, and roughly 21% of all artists have more than 50 monthly listeners (Spotify, 2024). The distribution of attention is steeply concentrated: artists like Taylor Swift, The Weeknd, Drake, Bad Bunny, and Billie Eilish occupy a tiny sliver at the top, while the overwhelming majority of music on the platform is listened to by very few people. This raises a compelling analytical question: do the sonic qualities of a song have any bearing on how many people listen to it, or is popularity driven almost entirely by factors outside the audio signal?
+
+In this project, we work with a large collection of Spotify track data to explore whether measurable audio characteristics can shed light on what makes a song popular. Our analysis is structured around four guiding SMART questions:
+
+1. What patterns emerge when we look at how audio features are distributed across tracks, and do any of them show a meaningful link to popularity?
+2. Is there a measurable difference in popularity between tracks labeled as explicit and those that are not?
+3. Do certain genres consistently attract higher popularity scores than others?
+4. Can we build a regression model that meaningfully predicts popularity from audio features, and does the story change when we account for genre?
+
+These questions allow us to apply a range of techniques from our coursework, including exploratory visualization, t-tests, ANOVA, chi-squared tests, and multiple regression with interaction terms.
 
 ## R Markdown
 
@@ -14,8 +37,8 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-## Data Overview
-
+# Data Overview
+## Data Source and Collection
 ```{r load-data}
 
 library(tidyverse)
@@ -23,6 +46,7 @@ library(tidyverse)
 spotify <- read.csv("dataset.csv", na.strings = c("", "NA"))
 
 ```
+This dataset is hosted on Hugging Face under a BSD license, uploaded by a researcher named Maharshi Pandya (Pandya, 2023). The tracks were pulled from Spotify using their public Web API along with a Python script. The API exposes both basic track information (who performed it, what album it belongs to) and a suite of numeric audio descriptors that Spotify generates internally through signal processing. None of these audio scores involve human judgment; they are machine-derived measurements.
 
 ```{r dimensions}
 nrow(spotify)
@@ -30,7 +54,7 @@ ncol(spotify)
 names(spotify)
 ```
 
-The dataset contains **`r nrow(spotify)`** tracks and **`r ncol(spotify)`** variables.
+The dataset contains **`r nrow(spotify)`** tracks and **`r ncol(spotify)`** variables. In total, the file holds `r format(nrow(spotify), big.mark = ",")` rows spanning `r length(unique(spotify$track_genre))` distinct genre labels, with a uniform 1,000 tracks assigned to each genre. The variables mix identifiers, text metadata, a binary explicit flag, and continuous numeric scores.
 
 ```{r structure}
 str(spotify)
@@ -39,6 +63,24 @@ str(spotify)
 ```{r summary-stats}
 summary(spotify)
 ```
+The key variables in our analysis fall into several categories. **Popularity** (0-100) is the dependent variable, recalculated regularly by Spotify with a bias toward recent streaming activity. The **audio features** like danceability, energy, loudness, valence, acousticness, speechiness, instrumentalness, liveness, and tempo are continuous numeric scores derived from Spotify's internal signal-processing algorithms. **Duration** is measured in milliseconds. **Explicit** is a binary flag indicating whether a track contains explicit lyrics. **Track genre** is a categorical label assigned to each track.
+
+It is worth emphasizing that the audio scores are proprietary to Spotify. We cannot inspect the exact formulas behind them, but Spotify's developer documentation provides a working understanding of what each one captures (Spotify for Developers, 2023). One important nuance about the popularity column: Spotify recalculates this number regularly, weighting recent streams more heavily. A track that was heavily played five years ago but is rarely streamed today could score lower than a new release with fewer total plays. This means popularity is a moving target, and our analysis captures a single point-in-time snapshot.
+
+## Sampling Considerations
+
+This is a question the dataset page does not answer directly, and it warrants careful attention. Spotify's API does not offer a way to draw a random sample of all tracks within a genre. Researchers typically work around this by querying Spotify's search endpoint, which ranks results by relevance and popularity, or by pulling tracks from genre-tagged playlists that are hand-curated by Spotify editors or generated algorithmically. Either method introduces a tilt toward tracks that already have some visibility.
+
+We can see evidence of this bias in the data itself. The median popularity across all `r format(nrow(spotify), big.mark = ",")` tracks is `r median(spotify$popularity)`. If we had a genuinely random slice of everything on Spotify, we would expect that number to be much closer to zero, since the overwhelming majority of tracks on the platform are listened to by very few people. The fact that our median sits at `r median(spotify$popularity)` tells us this sample over-represents tracks with at least some audience.
+
+There are also clues in the track metadata. Many of the zero-popularity entries appear on themed compilations (e.g., "Mellow Adult Pop," "Christmas Country Songs 2022"), which suggests the collector may have scraped tracks from curated playlists rather than from genre-wide search results. Additionally, the same recording sometimes appears multiple times under different album or playlist entries, each with its own track ID and an independent popularity score.
+
+The fixed 1,000-per-genre structure is clearly intentional, but it does not necessarily mirror reality. Pop and hip-hop account for a very large share of Spotify's actual catalog, while niche genres like grindcore or Iranian music make up a tiny fraction. Our results therefore describe patterns within this particular curated convenience sample and should not be taken as representative of Spotify as a whole. We can still identify associations and test whether those patterns are statistically significant within the data we have.
+
+## Data Quality
+
+Before proceeding with any analysis, we checked the dataset for structural issues.
+
 
 ### Missing Values
 
@@ -65,12 +107,17 @@ all_genres <- sort(unique(spotify$track_genre))
 all_genres
 
 ```
+Each of the `r length(genre_counts)` genres contains exactly `r unique(as.numeric(genre_counts))` tracks, which means the dataset is perfectly balanced by design. This balance is useful for fair genre-level comparisons, but it does not reflect the actual composition of Spotify's catalog.
 
-Each of the 114 genres contains 1,000 tracks.
+We also identified a second issue worth flagging: the genre labels "singer-songwriter" and "songwriter" contain exactly the same 1,000 tracks with identical values across every column. This appears to be a duplication error in the dataset construction, meaning we effectively have 113 unique genres rather than 114. We retained both labels to maintain consistency with the original source, and this duplication does not affect our top-5 genre analysis since neither label ranks among the most popular genres.
 
-## Exploratory Data Analysis
+# Exploratory Data Analysis
 
-### Distribution of Popularity
+We began our analysis with exploratory data analysis (EDA) to understand the shape and structure of the data before applying any formal statistical tests. EDA serves multiple purposes: it helps identify distributional patterns, flags potential outliers, and provides early signals about whether our research questions are likely to yield interesting results. In practice, the EDA phase substantially redirected our analytical approach---an outcome we discuss at the end of this section.
+
+## Distribution of Popularity
+
+The first step is to examine the dependent variable: popularity. Understanding its distribution is essential for interpreting all subsequent analyses, because the shape of the outcome variable determines what kinds of patterns are even possible to detect.
 
 ```{r popularity-hist}
 
@@ -87,33 +134,39 @@ sd(spotify$popularity)
 
 The popularity distribution is roughly symmetric with a slight right skew, centered around a median of `r median(spotify$popularity)`. Many tracks have low popularity scores, which is expected since most songs do not become mainstream hits.
 
-### Distributions of Key Audio Features
+## Distributions of Key Audio Features
+
+Before testing any relationships, we examine the distributions of the audio features that serve as our predictor variables. Understanding their shapes helps us assess whether they provide meaningful variation for predictive modeling, and whether any distributional assumptions required by our statistical methods are likely to hold.
 
 ```{r danceability-hist}
 ggplot(spotify, aes(x = danceability)) + geom_histogram(bins = 40, fill = "blue", color = "white") + ggtitle("Distribution of Danceability")
 ```
+Danceability follows a roughly normal, bell-shaped distribution centered around 0.57. Most songs are moderately danceable, with fewer tracks at the extremes. Spotify derives this score from tempo, rhythm stability, beat strength, and overall regularity (Spotify for Developers, 2023). The approximately normal shape is favorable for regression modeling, as it means we have good representation across the full range of values.
 
 ```{r energy-hist}
 ggplot(spotify, aes(x = energy)) + geom_histogram(bins = 40, fill = "orange", color = "white") + ggtitle("Distribution of Energy")
 ```
+Energy is left-skewed, with the majority of tracks clustering toward higher values. This tells us the dataset is dominated by high-energy tracks (very low-energy music, like ambient, classical, spoken word, is less common in this sample. This skew likely reflects the sampling bias toward more visible, mainstream music, which tends to be more energetic.
 
 ```{r loudness-hist}
 ggplot(spotify, aes(x = loudness)) + geom_histogram(bins = 40, fill = "green", color = "white") + ggtitle("Distribution of Loudness")
 ```
+Loudness is also left-skewed, with most tracks clustered between approximately $-10$ and $-4$ dB. This concentration around typical modern mastering levels is consistent with the well-documented "loudness war" in music production, where tracks have been pushed progressively louder over recent decades. Energy and loudness are somewhat correlated with each other (louder tracks tend to be higher energy) though we confirmed via VIF analysis later in this report that this correlation does not create problematic multicollinearity in our regression models.
 
 ```{r valence-hist}
 ggplot(spotify, aes(x = valence)) + geom_histogram(bins = 40, fill = "purple", color = "white") + ggtitle("Distribution of Valence")
 ```
+Valence is Spotify's measure of musical positivity, where high scores indicate happy or euphoric-sounding tracks and low scores indicate sad, angry, or dark-sounding ones, and is distributed roughly uniformly. Unlike danceability or energy, there is no central tendency. Tracks spread fairly evenly across the full emotional spectrum. This even spread makes valence a particularly informative predictor variable, because it provides genuine variation to work with. As the regression results will later show, valence carries a negative association with popularity in the overall model: sadder-sounding tracks tend to be slightly more popular on average, a counterintuitive finding that merits attention.
 
 ```{r acousticness-hist}
 ggplot(spotify, aes(x = acousticness)) + geom_histogram(bins = 40, fill = "orange", color = "white") + ggtitle("Distribution of Acousticness")
 ```
+Acousticness is heavily right-skewed: the vast majority of tracks register very low acousticness scores, reflecting the dominance of electronic production in modern music. A smaller group of highly acoustic tracks forms a thin tail at the upper end of the distribution.
 
 ```{r tempo-hist}
 ggplot(spotify, aes(x = tempo)) + geom_histogram(bins = 40, fill = "red", color = "white") + ggtitle("Distribution of Tempo")
 ```
-
-Danceability is roughly normally distrubuted. Energy is skewed to the left. Loudness is left-skewed. Valence is approximately uniform. Acousticness is heavily right-skewed. Tempo is normally distributed around 120 BPM.
+Tempo is approximately normally distributed, centered around 120 BPM (a common tempo in popular music that corresponds roughly to the pace of a brisk walk). Like danceability, the normal shape of tempo's distribution is favorable for the regression analyses that follow.
 
 ### Correlation with Popularity
 
